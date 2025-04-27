@@ -1,0 +1,21 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # prefer_const_constructors: true # Example: enable additional rules
+    # avoid_print: true # Can be useful to disallow print statements
+    # Add other rules as needed
+    public_member_api_docs: false # Disable requiring docs for all public members for now
+    lines_longer_than_80_chars: false # Allow longer lines
+
+analyzer:
+  exclude:
+    - build/**
+    - '**/*.g.dart' # Exclude generated files
+    - '**/*.freezed.dart' # Exclude generated files
+  errors:
+    # treat warnings as errors
+    # missing_required_param: error
+    # missing_return: error
+    # must_be_immutable: error
+    # todo: ignore # uncomment to ignore TODOs

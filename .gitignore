@@ -1,40 +1,70 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
 .DS_Store
-*.pem
+.atom/
+.buildlog/
+.history
+.svn/
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
 
-# vercel
-.vercel
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Runner/GeneratedPluginRegistrant.*
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Android specific
+/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+/android/key.properties
+/android/.gradle/
+/android/local.properties
+/android/gradlew
+/android/gradlew.bat
+/android/gradle/wrapper/gradle-wrapper.jar
 
-.genkit/*
+# Build results
+/build/
+
+# Flutter web specific
+.dart_tool/build/
+
+# Generated files for web builds
+lib/generated_plugin_registrant.dart
+
+# Ignore FVM directory
+.fvm/
+
+# VS Code settings
+.vscode/launch.json
+# Keep .vscode/settings.json if desired
+
+# Operating system artifacts
+Thumbs.db
+ehthumbs.db
+
+# Ignore files meant for internal development
+.idea/
+*.iml
+
+# Ignore sensitive environment files (if used)
+.env*
+*.env
