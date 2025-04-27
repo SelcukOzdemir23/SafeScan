@@ -1,14 +1,16 @@
+import 'package:flutter/material.dart'; // For Color
 
-import 'package:flutter/material.dart';
-
-/// Represents the safety status of a URL.
+// Enum defining the possible safety statuses
 enum SafetyStatus {
   safe,
   unsafe,
-  warning,
-  unknown;
+  warning, // Could be suspicious, phishing attempt, etc.
+  unknown, // Could not determine status
+  error // Error during the check process
+}
 
-  /// Provides a user-friendly display name for the status.
+// Extension to add properties like display name and color to the enum
+extension SafetyStatusProperties on SafetyStatus {
   String get displayName {
     switch (this) {
       case SafetyStatus.safe:
@@ -18,77 +20,103 @@ enum SafetyStatus {
       case SafetyStatus.warning:
         return 'Warning';
       case SafetyStatus.unknown:
-      default:
         return 'Unknown';
+      case SafetyStatus.error:
+        return 'Check Failed';
     }
   }
 
-  /// Provides a representative color for the status.
   Color get color {
+    // Define colors based on your theme or preference
+    // These are example colors, adjust as needed
     switch (this) {
       case SafetyStatus.safe:
-        return Colors.green;
+        return Colors.green.shade600; // Darker green for better contrast
       case SafetyStatus.unsafe:
-        return Colors.red;
+        return Colors.red.shade700; // Darker red
       case SafetyStatus.warning:
-        return Colors.orange;
+        return Colors.orange.shade700; // Darker orange
       case SafetyStatus.unknown:
-      default:
-        return Colors.grey;
+        return Colors.grey.shade600; // Darker grey
+      case SafetyStatus.error:
+        return Colors.blueGrey.shade600; // A different color for errors
     }
   }
 
-  /// Provides a suitable icon for the status.
   IconData get icon {
      switch (this) {
       case SafetyStatus.safe:
-        return Icons.check_circle_outline;
+        return Icons.check_circle_outline_rounded; // Checkmark icon
       case SafetyStatus.unsafe:
-        return Icons.dangerous_outlined;
+        return Icons.dangerous_outlined; // Danger icon
       case SafetyStatus.warning:
-        return Icons.warning_amber_outlined;
+        return Icons.warning_amber_rounded; // Warning icon
       case SafetyStatus.unknown:
-      default:
-        return Icons.help_outline;
-    }
-  }
-
-  /// Parses a string (typically from an API response) into a SafetyStatus.
-  static SafetyStatus fromString(String? statusString) {
-    switch (statusString?.toLowerCase()) {
-      case 'safe':
-        return SafetyStatus.safe;
-      case 'unsafe':
-      case 'malicious': // Allow for variations
-        return SafetyStatus.unsafe;
-      case 'warning':
-      case 'suspicious': // Allow for variations
-        return SafetyStatus.warning;
-      case 'unknown':
-      default:
-        return SafetyStatus.unknown;
+        return Icons.help_outline_rounded; // Question mark icon
+      case SafetyStatus.error:
+        return Icons.error_outline_rounded; // Error icon
     }
   }
 }
 
-/// Represents the result of a URL safety check.
-class SafetyResult {
+// Class representing the result of a safety check
+class SafetyCheckResult {
   final String url;
   final SafetyStatus status;
-  final String message; // Message from the backend explaining the status
+  final String? message; // Optional message (e.g., reason for warning/error)
 
-  SafetyResult({
+  SafetyCheckResult({
     required this.url,
     required this.status,
-    required this.message,
+    this.message,
   });
 
-  /// Creates a SafetyResult instance from a JSON map (API response).
-  factory SafetyResult.fromJson(Map<String, dynamic> json) {
-    return SafetyResult(
-      url: json['url'] ?? '',
-      status: SafetyStatus.fromString(json['status']),
-      message: json['message'] ?? 'No additional information provided.', // Default message
+  // Factory constructor for creating an error result easily
+  factory SafetyCheckResult.error({required String url, String? message}) {
+    return SafetyCheckResult(
+      url: url,
+      status: SafetyStatus.error,
+      message: message ?? 'Failed to check URL safety.',
     );
+  }
+
+  // Factory constructor for parsing from JSON (adjust keys based on your backend)
+  factory SafetyCheckResult.fromJson(Map<String, dynamic> json) {
+    SafetyStatus status;
+    // Convert string status from backend to enum
+    switch (json['status']?.toLowerCase()) {
+      case 'safe':
+        status = SafetyStatus.safe;
+        break;
+      case 'unsafe':
+        status = SafetyStatus.unsafe;
+        break;
+      case 'warning':
+      case 'suspicious': // Handle potential variations
+        status = SafetyStatus.warning;
+        break;
+      case 'unknown':
+         status = SafetyStatus.unknown;
+         break;
+      default:
+        // If status is missing or unrecognized, treat as unknown or error
+        print("Warning: Received unknown status '${json['status']}' from backend.");
+        status = SafetyStatus.unknown; // Default to unknown if unrecognized
+    }
+
+    return SafetyCheckResult(
+      url: json['url'] ?? '', // Provide default value if null
+      status: status,
+      message: json['message'], // Optional message from backend
+    );
+  }
+
+  // Optional: Convert to JSON if needed (e.g., for caching)
+  Map<String, dynamic> toJson() {
+    return {
+      'url': url,
+      'status': status.name, // Convert enum to string
+      'message': message,
+    };
   }
 }

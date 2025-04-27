@@ -1,137 +1,141 @@
-
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Define colors based on style guidelines
-  static const Color _primaryColor = Colors.white; // #FFFFFF
-  static const Color _secondaryColor = Color(0xFFF0F0F0); // #F0F0F0 Light Gray
-  static const Color _accentColor = Color(0xFF008080); // #008080 Teal
-  static const Color _textColor = Colors.black87; // Readable text color on light background
-  static const Color _errorColor = Colors.redAccent;
-
+  // --- Light Theme ---
   static ThemeData get lightTheme {
     return ThemeData(
-      useMaterial3: true, // Enable Material 3 features
       brightness: Brightness.light,
-      primaryColor: _primaryColor, // Not directly used by many M3 components
-      scaffoldBackgroundColor: _secondaryColor, // Use light gray for background
+      primarySwatch: Colors.teal, // Or another MaterialColor swatch
+      colorScheme: ColorScheme.light(
+        primary: Colors.teal.shade600, // Primary color (app bars, buttons)
+        onPrimary: Colors.white, // Text/icons on primary color
+        secondary: Colors.amber.shade700, // Secondary accent color
+        onSecondary: Colors.black, // Text/icons on secondary color
+        background: Colors.grey.shade100, // App background
+        onBackground: Colors.black87, // Text/icons on background
+        surface: Colors.white, // Card backgrounds, dialogs
+        onSurface: Colors.black87, // Text/icons on surface
+        error: Colors.red.shade700, // Error color
+        onError: Colors.white, // Text/icons on error color
+        // Specific colors for result indicators
+        primaryContainer: Colors.teal.shade100, // Lighter primary for containers
+        onPrimaryContainer: Colors.teal.shade900,
+        secondaryContainer: Colors.amber.shade100, // Lighter secondary for containers
+        onSecondaryContainer: Colors.amber.shade900,
+        errorContainer: Colors.red.shade100,
+        onErrorContainer: Colors.red.shade900,
 
-      colorScheme: const ColorScheme.light(
-        primary: _accentColor, // Use Teal as the primary action color
-        onPrimary: _primaryColor, // Text/icons on primary color (white for Teal)
-        secondary: _accentColor, // Can use accent again or another color
-        onSecondary: _primaryColor,
-        surface: _primaryColor, // Card backgrounds, dialogs (white)
-        onSurface: _textColor, // Text on surface
-        background: _secondaryColor, // Main background
-        onBackground: _textColor, // Text on background
-        error: _errorColor,
-        onError: _primaryColor,
-        brightness: Brightness.light, // Explicitly light
-        // InversePrimary is often used for AppBar backgrounds
-        inversePrimary: _accentColor,
       ),
-
-      appBarTheme: const AppBarTheme(
-        backgroundColor: _accentColor, // Teal app bar
-        foregroundColor: _primaryColor, // White title/icons
-        elevation: 1.0, // Subtle shadow
-        titleTextStyle: TextStyle(
-          fontSize: 20.0,
-          fontWeight: FontWeight.w500,
-          color: _primaryColor,
-          // Consider adding a specific font family if needed
-        ),
-        iconTheme: IconThemeData(
-          color: _primaryColor, // White icons in AppBar
-        ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.teal.shade700,
+        foregroundColor: Colors.white, // Title and icon color
+        elevation: 4.0,
       ),
-
-      // Define text theme for readability
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 57.0, fontWeight: FontWeight.w400, color: _textColor),
-        displayMedium: TextStyle(fontSize: 45.0, fontWeight: FontWeight.w400, color: _textColor),
-        displaySmall: TextStyle(fontSize: 36.0, fontWeight: FontWeight.w400, color: _textColor),
-        headlineLarge: TextStyle(fontSize: 32.0, fontWeight: FontWeight.w400, color: _textColor),
-        headlineMedium: TextStyle(fontSize: 28.0, fontWeight: FontWeight.w400, color: _textColor),
-        headlineSmall: TextStyle(fontSize: 24.0, fontWeight: FontWeight.w400, color: _textColor),
-        titleLarge: TextStyle(fontSize: 22.0, fontWeight: FontWeight.w500, color: _textColor), // App Bar title uses this if not overridden
-        titleMedium: TextStyle(fontSize: 16.0, fontWeight: FontWeight.w500, letterSpacing: 0.15, color: _textColor),
-        titleSmall: TextStyle(fontSize: 14.0, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: _textColor),
-        bodyLarge: TextStyle(fontSize: 16.0, fontWeight: FontWeight.w400, letterSpacing: 0.5, color: _textColor),
-        bodyMedium: TextStyle(fontSize: 14.0, fontWeight: FontWeight.w400, letterSpacing: 0.25, color: _textColor),
-        bodySmall: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w400, letterSpacing: 0.4, color: _textColor),
-        labelLarge: TextStyle(fontSize: 14.0, fontWeight: FontWeight.w500, letterSpacing: 1.25, color: _textColor), // Button text
-        labelMedium: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w400, letterSpacing: 0.5, color: _textColor),
-        labelSmall: TextStyle(fontSize: 11.0, fontWeight: FontWeight.w400, letterSpacing: 1.5, color: _textColor),
-      ),
-
-      // Define button themes
+      scaffoldBackgroundColor: Colors.grey.shade100,
+      textTheme: _buildTextTheme(ThemeData.light().textTheme), // Use base light theme text
+       buttonTheme: ButtonThemeData(
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+         buttonColor: Colors.teal.shade600,
+         textTheme: ButtonTextTheme.primary,
+       ),
        elevatedButtonTheme: ElevatedButtonThemeData(
          style: ElevatedButton.styleFrom(
-           backgroundColor: _accentColor, // Teal buttons
-           foregroundColor: _primaryColor, // White text on buttons
-           shape: RoundedRectangleBorder(
-             borderRadius: BorderRadius.circular(8.0), // Slightly rounded corners
-           ),
-           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-           textStyle: const TextStyle(
-             fontSize: 14.0,
-             fontWeight: FontWeight.w500,
-             letterSpacing: 1.25, // Typical for button text
-           ),
+           foregroundColor: Colors.white, backgroundColor: Colors.teal.shade600, // Text color on button
+           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
          ),
        ),
-
-      // Define card theme for consistency
-      cardTheme: CardTheme(
-        color: _primaryColor, // White cards
-        elevation: 1.0, // Subtle shadow
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0), // Rounded corners for cards
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      ),
-
-      // Define input decoration theme for text fields (if used)
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          borderSide: BorderSide.none, // No border by default
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          borderSide: const BorderSide(color: _accentColor, width: 2.0), // Teal border when focused
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      ),
-
-       // Define icon theme
-      iconTheme: const IconThemeData(
-        color: _textColor, // Default icon color
-        size: 24.0,
-      ),
-
-      // Define floating action button theme (if used)
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-         backgroundColor: _accentColor,
-         foregroundColor: _primaryColor,
+       outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.teal.shade600, // Text and border color
+            side: BorderSide(color: Colors.teal.shade600),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          ),
        ),
-
-       // Add other component themes as needed (e.g., SnackBarTheme, DialogTheme)
-       snackBarTheme: SnackBarThemeData(
-        backgroundColor: Colors.grey[800], // Darker background for contrast
-        contentTextStyle: const TextStyle(color: Colors.white),
-        actionTextColor: _accentColor, // Teal action text color
+       dialogTheme: DialogTheme(
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+       ),
+       cardTheme: CardTheme(
+         elevation: 2.0,
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
        ),
     );
   }
 
-  // Optional: Define a dark theme
-  // static ThemeData get darkTheme {
-  //   // ... Define dark theme colors and properties ...
-  //   return ThemeData(...);
-  // }
+  // --- Dark Theme ---
+  static ThemeData get darkTheme {
+    return ThemeData(
+      brightness: Brightness.dark,
+      primarySwatch: Colors.teal, // Keep consistent swatch if possible
+      colorScheme: ColorScheme.dark(
+        primary: Colors.teal.shade400, // Slightly lighter primary for dark mode
+        onPrimary: Colors.black,
+        secondary: Colors.amber.shade400, // Slightly lighter secondary
+        onSecondary: Colors.black,
+        background: Colors.grey.shade900, // Dark background
+        onBackground: Colors.white70,
+        surface: Colors.grey.shade800, // Dark surface
+        onSurface: Colors.white70,
+        error: Colors.red.shade400, // Lighter error
+        onError: Colors.black,
+        // Specific colors for result indicators
+         primaryContainer: Colors.teal.shade800,
+         onPrimaryContainer: Colors.teal.shade100,
+         secondaryContainer: Colors.amber.shade800,
+         onSecondaryContainer: Colors.amber.shade100,
+         errorContainer: Colors.red.shade800,
+         onErrorContainer: Colors.red.shade100,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.grey.shade800,
+        foregroundColor: Colors.white,
+        elevation: 4.0,
+      ),
+      scaffoldBackgroundColor: Colors.grey.shade900,
+      textTheme: _buildTextTheme(ThemeData.dark().textTheme), // Use base dark theme text
+      buttonTheme: ButtonThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        buttonColor: Colors.teal.shade400,
+        textTheme: ButtonTextTheme.primary, // Ensure text is contrasty
+      ),
+       elevatedButtonTheme: ElevatedButtonThemeData(
+         style: ElevatedButton.styleFrom(
+           foregroundColor: Colors.black, backgroundColor: Colors.teal.shade400,
+           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+         ),
+       ),
+       outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.teal.shade400, // Text and border color
+            side: BorderSide(color: Colors.teal.shade400),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          ),
+       ),
+       dialogTheme: DialogTheme(
+         backgroundColor: Colors.grey.shade800,
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+       ),
+        cardTheme: CardTheme(
+         elevation: 2.0,
+         color: Colors.grey.shade800,
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+       ),
+    );
+  }
+
+   // --- Text Theme (Customize if needed) ---
+   static TextTheme _buildTextTheme(TextTheme base) {
+     // You can customize fonts or specific text styles here
+     return base.copyWith(
+       // Example: Make headlines slightly bolder
+       headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
+       headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+       // Add Google Fonts here if desired
+     );
+   }
 }

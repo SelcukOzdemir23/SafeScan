@@ -1,5 +1,9 @@
+// lib/src/utils/constants.dart
 
-// Add any application-wide constants here if needed.
+// You can define application-wide constants here.
 // For example:
-// const String appVersion = '1.0.0';
-// const Duration defaultTimeout = Duration(seconds: 15);
+// const String appTitle = 'SafeScan';
+// const double defaultPadding = 16.0;
+
+// Currently empty as constants are mostly handled within their relevant files
+// or via Theme data.
