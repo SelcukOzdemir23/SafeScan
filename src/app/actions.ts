@@ -5,28 +5,31 @@ import { checkUrlSafety, type SafetyCheckResult } from '@/services/url-safety-ch
 
 const urlSchema = z.string().url({ message: "Invalid URL format." });
 
+// Define the state shape returned by the action
 interface CheckUrlState {
   result?: SafetyCheckResult & { originalUrl: string };
   error?: string;
-  loading: boolean;
+  // loading is no longer needed here, useActionState provides pending state
 }
 
 export async function checkUrlAction(
-  prevState: CheckUrlState | null, // Add prevState
+  // The previous state is the first argument
+  prevState: CheckUrlState | null,
   formData: FormData,
 ): Promise<CheckUrlState> {
   const urlInput = formData.get('url') as string | null;
 
   if (!urlInput) {
-    return { error: "URL is required.", loading: false };
+    // Return the error state, no loading needed
+    return { error: "URL is required." };
   }
 
   try {
     const validatedUrl = urlSchema.parse(urlInput);
 
     console.log(`Checking URL: ${validatedUrl}`); // Add logging
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulate API call delay (optional, can be removed if handled by pending state visually)
+    // await new Promise(resolve => setTimeout(resolve, 1500));
 
     // In a real app, this would call the backend service (e.g., Firebase Function)
     // which then calls the external safety API.
@@ -34,16 +37,18 @@ export async function checkUrlAction(
     const safetyResult = await checkUrlSafety(validatedUrl);
     console.log(`Safety Result: ${JSON.stringify(safetyResult)}`); // Add logging
 
+    // Return the success state with the result
     return {
       result: { ...safetyResult, originalUrl: validatedUrl },
-      loading: false,
     };
   } catch (error) {
     console.error("Error checking URL:", error); // Add logging
     if (error instanceof z.ZodError) {
-      return { error: error.errors[0]?.message || "Invalid URL format.", loading: false };
+      // Return the error state with validation message
+      return { error: error.errors[0]?.message || "Invalid URL format." };
     }
     // Handle other potential errors (network, API errors from checkUrlSafety)
-    return { error: "An error occurred while checking the URL.", loading: false };
+    // Return the generic error state
+    return { error: "An error occurred while checking the URL." };
   }
 }
