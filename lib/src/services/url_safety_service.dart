@@ -34,7 +34,7 @@ class UrlSafetyService {
       if (!uri.hasScheme || !['http', 'https'].contains(uri.scheme)) {
         return SafetyResult(
           url: url,
-          isSafe: false,
+          status: SafetyStatus.unsafe,
           threatType: AppConstants.invalidSchemaTitle,
           description: AppConstants.invalidSchemaMessage,
         );
@@ -53,7 +53,7 @@ class UrlSafetyService {
       if (_isRateLimited()) {
         return SafetyResult(
           url: url,
-          isSafe: false,
+          status: SafetyStatus.error,
           threatType: AppConstants.rateLimitTitle,
           description: AppConstants.rateLimitMessage,
         );
@@ -62,14 +62,14 @@ class UrlSafetyService {
       // Record this request timestamp
       _requestTimestamps.add(DateTime.now());
 
-      // Check for basic security indicators
-      bool isSafe = true;
+      // Default to safe status
+      SafetyStatus status = SafetyStatus.safe;
       String threatType = '';
       String description = '';
 
       // Check for HTTPS
       if (uri.scheme != 'https') {
-        isSafe = false;
+        status = SafetyStatus.warning;
         threatType = AppConstants.insecureConnectionTitle;
         description = AppConstants.insecureConnectionMessage;
       }
@@ -77,7 +77,7 @@ class UrlSafetyService {
       // Check for suspicious keywords in domain
       if (AppConstants.suspiciousKeywords.any((keyword) =>
           uri.host.toLowerCase().contains(keyword.toLowerCase()))) {
-        isSafe = false;
+        status = SafetyStatus.warning;
         threatType = AppConstants.suspiciousDomainTitle;
         description = AppConstants.suspiciousDomainMessage;
       }
@@ -91,28 +91,28 @@ class UrlSafetyService {
 
         // Check status code
         if (response.statusCode >= 400) {
-          isSafe = false;
+          status = SafetyStatus.unsafe;
           threatType = AppConstants.invalidUrlTitle;
           description =
               '${AppConstants.invalidUrlMessage}: ${response.statusCode}';
         }
       } on TimeoutException {
-        isSafe = false;
+        status = SafetyStatus.warning;
         threatType = AppConstants.timeoutTitle;
         description = AppConstants.timeoutMessage;
       } on http.ClientException catch (e) {
-        isSafe = false;
+        status = SafetyStatus.error;
         threatType = AppConstants.connectionErrorTitle;
         description = '${AppConstants.connectionErrorMessage}: ${e.message}';
       } catch (e) {
-        isSafe = false;
+        status = SafetyStatus.error;
         threatType = AppConstants.errorTitle;
         description = '${AppConstants.errorMessage}: ${e.toString()}';
       }
 
       final result = SafetyResult(
         url: url,
-        isSafe: isSafe,
+        status: status,
         threatType: threatType,
         description:
             description.isEmpty ? AppConstants.safeMessage : description,
@@ -126,7 +126,7 @@ class UrlSafetyService {
     } catch (e) {
       return SafetyResult(
         url: url,
-        isSafe: false,
+        status: SafetyStatus.error,
         threatType: AppConstants.invalidUrlFormatTitle,
         description: '${AppConstants.invalidUrlFormatMessage}: ${e.toString()}',
       );

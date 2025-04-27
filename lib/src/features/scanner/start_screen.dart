@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = const Color(0xFF008080);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -16,44 +17,92 @@ class StartScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shield_rounded, size: 72, color: accentColor),
-                const SizedBox(height: 16),
+                // App logo with animation
+                Icon(
+                  Icons.shield_rounded,
+                  size: 80,
+                  color: colorScheme.primary,
+                )
+                    .animate(
+                        onPlay: (controller) =>
+                            controller.repeat(reverse: true))
+                    .scale(
+                      duration: 3.seconds,
+                      begin: const Offset(1, 1),
+                      end: const Offset(1.05, 1.05),
+                      curve: Curves.easeInOut,
+                    )
+                    .animate()
+                    .fadeIn(duration: 600.ms, curve: Curves.easeOut)
+                    .slideY(
+                        begin: -0.1,
+                        end: 0,
+                        duration: 600.ms,
+                        curve: Curves.easeOut),
+
+                const SizedBox(height: 24),
+
+                // App title with animation
                 Text(
-                  'Welcome to SafeScan',
-                  style: GoogleFonts.inter(
-                    fontSize: 28,
+                  'SafeScan QR',
+                  style: theme.textTheme.displaySmall?.copyWith(
+                    color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
-                    color: accentColor,
                   ),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
+                ).animate().fadeIn(duration: 800.ms, delay: 300.ms).slideY(
+                    begin: 0.2,
+                    end: 0,
+                    duration: 800.ms,
+                    delay: 300.ms,
+                    curve: Curves.easeOutQuad),
+
+                const SizedBox(height: 12),
+
+                // App description with animation
                 Text(
-                  'Scan, upload, or enter a URL to check its safety.',
-                  style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
+                  'Scan QR codes and verify URL safety before visiting',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withAlpha(180),
+                  ),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
+                ).animate().fadeIn(duration: 800.ms, delay: 500.ms).slideY(
+                    begin: 0.2,
+                    end: 0,
+                    duration: 800.ms,
+                    delay: 500.ms,
+                    curve: Curves.easeOutQuad),
+
+                const SizedBox(height: 48),
+
+                // Action buttons with animations
                 _StartActionButton(
                   icon: Icons.qr_code_scanner,
                   label: 'Scan QR Code',
-                  color: accentColor,
+                  description: 'Use camera to scan',
                   onTap: () => Navigator.pushNamed(context, '/scanner'),
-                ),
-                const SizedBox(height: 20),
+                ).animate().fadeIn(duration: 600.ms, delay: 700.ms).slideY(
+                    begin: 0.2, end: 0, duration: 600.ms, delay: 700.ms),
+
+                const SizedBox(height: 16),
+
                 _StartActionButton(
-                  icon: Icons.image,
+                  icon: Icons.image_outlined,
                   label: 'Upload QR Image',
-                  color: accentColor,
+                  description: 'From your gallery',
                   onTap: () => Navigator.pushNamed(context, '/qr_image'),
-                ),
-                const SizedBox(height: 20),
+                ).animate().fadeIn(duration: 600.ms, delay: 900.ms).slideY(
+                    begin: 0.2, end: 0, duration: 600.ms, delay: 900.ms),
+
+                const SizedBox(height: 16),
+
                 _StartActionButton(
-                  icon: Icons.keyboard,
+                  icon: Icons.keyboard_alt_outlined,
                   label: 'Enter URL Manually',
-                  color: accentColor,
+                  description: 'Type or paste a link',
                   onTap: () => Navigator.pushNamed(context, '/manual_url'),
-                ),
+                ).animate().fadeIn(duration: 600.ms, delay: 1100.ms).slideY(
+                    begin: 0.2, end: 0, duration: 600.ms, delay: 1100.ms),
               ],
             ),
           ),
@@ -66,36 +115,82 @@ class StartScreen extends StatelessWidget {
 class _StartActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final String description;
   final VoidCallback onTap;
 
   const _StartActionButton({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.description,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Card(
+      elevation: 0,
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outline.withAlpha(40),
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: colorScheme.primary.withAlpha(40),
+        highlightColor: colorScheme.primary.withAlpha(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withAlpha(30),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withAlpha(150),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: colorScheme.onSurface.withAlpha(150),
+              ),
+            ],
           ),
-          elevation: 2,
         ),
-        icon: Icon(icon, size: 28),
-        label: Text(
-          label,
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        onPressed: onTap,
       ),
     );
   }

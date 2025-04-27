@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class ErrorMessage extends StatelessWidget {
@@ -30,23 +29,21 @@ class ErrorMessage extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               title,
-              style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.error,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 8),
             Text(
               message,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withAlpha(179), // 0.7 opacity
-              ),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withAlpha(179), // 0.7 opacity
+                  ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
             if (onRetry != null) ...[

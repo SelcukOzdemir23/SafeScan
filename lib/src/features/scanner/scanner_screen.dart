@@ -300,8 +300,9 @@ class _ScannerScreenState extends State<ScannerScreen>
               return IconButton(
                 icon: Icon(
                   _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
-                  color:
-                      _controller.torchEnabled ? Colors.yellow : Colors.white,
+                  color: _controller.torchEnabled
+                      ? Colors.amber
+                      : Theme.of(context).colorScheme.onPrimary,
                 ),
                 onPressed: () => _controller.toggleTorch(),
                 tooltip: 'Toggle flash',
@@ -316,25 +317,44 @@ class _ScannerScreenState extends State<ScannerScreen>
           if (_cameraPermissionStatus.isGranted &&
               !_isCameraInitializing &&
               _initializationError == null)
-            const QRScannerOverlay(
+            QRScannerOverlay(
               scanAreaSize: AppConstants.scannerOverlaySize,
-              overlayColour: Colors.black54,
+              overlayColour: Colors.black.withAlpha(150),
               scanAreaHint: AppConstants.scannerHint,
             ),
           if (_isCheckingUrl)
             ColoredBox(
-              color: Colors.black.withAlpha(179),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      AppConstants.checkingUrlMessage,
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
+              color: Colors.black.withAlpha(200),
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(60),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        AppConstants.checkingUrlMessage,
+                        style: Theme.of(context).textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -342,8 +362,9 @@ class _ScannerScreenState extends State<ScannerScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showActionSelectionSheet,
-        icon: const Icon(Icons.qr_code),
-        label: const Text('Scan or Upload'),
+        icon: const Icon(Icons.more_horiz),
+        label: const Text('More Options'),
+        elevation: 4,
       ),
     );
   }
