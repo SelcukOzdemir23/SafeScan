@@ -68,7 +68,6 @@ class ResultScreen extends StatelessWidget {
 
   Widget _buildSafetyIndicator(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     // Get appropriate icon and text based on safety status
     IconData statusIcon;

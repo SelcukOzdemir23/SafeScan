@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:http/http.dart' as http;
 import 'package:safescan_flutter/src/models/safety_result.dart';
 import 'package:safescan_flutter/src/utils/constants.dart';
 
 class UrlSafetyService {
   // Cache for storing recent results
-  final _cache = LinkedHashMap<String, _CacheEntry>();
+  final _cache = <String, _CacheEntry>{};
   final _requestTimestamps = <DateTime>[];
   static const _maxRequestsPerMinute = 30;
   static const _cacheValidityDuration = Duration(minutes: 30);
