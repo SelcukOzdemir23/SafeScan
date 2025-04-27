@@ -1,60 +1,142 @@
-import 'dart:convert'; // For jsonDecode/jsonEncode
-import 'package:http/http.dart' as http; // HTTP package
-import 'package:safescan_flutter/src/models/safety_result.dart'; // Import your model
+import 'dart:async';
+import 'dart:collection';
+import 'package:http/http.dart' as http;
+import 'package:safescan_flutter/src/models/safety_result.dart';
+import 'package:safescan_flutter/src/utils/constants.dart';
 
 class UrlSafetyService {
-  // IMPORTANT: Replace with your ACTUAL backend endpoint URL
-  // For local development:
-  // - Android Emulator: Use 10.0.2.2
-  // - iOS Simulator/Physical Device (same network): Use your computer's local IP address
-  // - Deployed Backend: Use the public URL
-  final String _baseUrl = 'http://10.0.2.2:3000/api/check-url'; // EXAMPLE for Android Emulator on default port
+  // Cache for storing recent results
+  final _cache = LinkedHashMap<String, _CacheEntry>();
+  final _requestTimestamps = <DateTime>[];
+  static const _maxRequestsPerMinute = 30;
+  static const _cacheValidityDuration = Duration(minutes: 30);
 
-  Future<SafetyCheckResult> checkUrlSafety(String url) async {
-    if (url.isEmpty) {
-       return SafetyCheckResult.error(url: url, message: 'URL cannot be empty.');
-    }
+  // Rate limiting check
+  bool _isRateLimited() {
+    final now = DateTime.now();
+    _requestTimestamps.removeWhere(
+      (timestamp) => now.difference(timestamp) > const Duration(minutes: 1),
+    );
+    return _requestTimestamps.length >= _maxRequestsPerMinute;
+  }
 
-    final Uri uri = Uri.parse(_baseUrl);
+  // Cache cleanup
+  void _cleanCache() {
+    final now = DateTime.now();
+    _cache.removeWhere(
+        (_, entry) => now.difference(entry.timestamp) > _cacheValidityDuration);
+  }
 
+  Future<SafetyResult> checkUrlSafety(String url) async {
     try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'url': url}),
-      ).timeout(const Duration(seconds: 15)); // Add a timeout
-
-      if (response.statusCode == 200) {
-        // Successfully received response from backend
-        final Map<String, dynamic> data = jsonDecode(response.body);
-         // Use the factory constructor to parse the JSON
-         // Assuming backend returns { "url": "...", "status": "safe|unsafe|etc", "message": "..." }
-        return SafetyCheckResult.fromJson(data);
-      } else {
-        // Handle backend errors (e.g., 400 Bad Request, 500 Internal Server Error)
-        String errorMessage = 'Backend error: ${response.statusCode}';
-         try {
-           // Try to parse error message from backend response body
-           final Map<String, dynamic> errorData = jsonDecode(response.body);
-           errorMessage = errorData['error'] ?? errorData['message'] ?? errorMessage;
-         } catch (_) {
-           // Ignore if response body is not valid JSON
-           errorMessage += '\nResponse: ${response.body}'; // Include raw response if parsing fails
-         }
-         print("Backend Error (${response.statusCode}): $errorMessage"); // Log error
-        return SafetyCheckResult.error(url: url, message: 'Failed to get safety status from server ($errorMessage)');
+      // Basic URL validation and sanitization
+      final Uri uri = Uri.parse(url);
+      if (!uri.hasScheme || !['http', 'https'].contains(uri.scheme)) {
+        return SafetyResult(
+          url: url,
+          isSafe: false,
+          threatType: AppConstants.invalidSchemaTitle,
+          description: AppConstants.invalidSchemaMessage,
+        );
       }
-    } on http.ClientException catch (e) {
-       // Handle network-related errors (e.g., no connection, DNS error)
-       print("Network Error: $e"); // Log error
-       return SafetyCheckResult.error(url: url, message: 'Network error: Could not connect to the safety service. Please check your internet connection.');
-    } on TimeoutException catch (_) {
-       print("Timeout Error checking URL: $url"); // Log error
-       return SafetyCheckResult.error(url: url, message: 'The request timed out. The safety service might be busy or unavailable.');
+
+      // Check cache first
+      final cacheKey = uri.toString();
+      final cachedResult = _cache[cacheKey];
+      if (cachedResult != null &&
+          DateTime.now().difference(cachedResult.timestamp) <=
+              _cacheValidityDuration) {
+        return cachedResult.result;
+      }
+
+      // Rate limiting check
+      if (_isRateLimited()) {
+        return SafetyResult(
+          url: url,
+          isSafe: false,
+          threatType: AppConstants.rateLimitTitle,
+          description: AppConstants.rateLimitMessage,
+        );
+      }
+
+      // Record this request timestamp
+      _requestTimestamps.add(DateTime.now());
+
+      // Check for basic security indicators
+      bool isSafe = true;
+      String threatType = '';
+      String description = '';
+
+      // Check for HTTPS
+      if (uri.scheme != 'https') {
+        isSafe = false;
+        threatType = AppConstants.insecureConnectionTitle;
+        description = AppConstants.insecureConnectionMessage;
+      }
+
+      // Check for suspicious keywords in domain
+      if (AppConstants.suspiciousKeywords.any((keyword) =>
+          uri.host.toLowerCase().contains(keyword.toLowerCase()))) {
+        isSafe = false;
+        threatType = AppConstants.suspiciousDomainTitle;
+        description = AppConstants.suspiciousDomainMessage;
+      }
+
+      try {
+        // Attempt to fetch headers with timeout
+        final response = await http.head(
+          uri,
+          headers: {'User-Agent': 'SafeScan/1.0'},
+        ).timeout(AppConstants.urlCheckTimeout);
+
+        // Check status code
+        if (response.statusCode >= 400) {
+          isSafe = false;
+          threatType = AppConstants.invalidUrlTitle;
+          description =
+              '${AppConstants.invalidUrlMessage}: ${response.statusCode}';
+        }
+      } on TimeoutException {
+        isSafe = false;
+        threatType = AppConstants.timeoutTitle;
+        description = AppConstants.timeoutMessage;
+      } on http.ClientException catch (e) {
+        isSafe = false;
+        threatType = AppConstants.connectionErrorTitle;
+        description = '${AppConstants.connectionErrorMessage}: ${e.message}';
+      } catch (e) {
+        isSafe = false;
+        threatType = AppConstants.errorTitle;
+        description = '${AppConstants.errorMessage}: ${e.toString()}';
+      }
+
+      final result = SafetyResult(
+        url: url,
+        isSafe: isSafe,
+        threatType: threatType,
+        description:
+            description.isEmpty ? AppConstants.safeMessage : description,
+      );
+
+      // Cache the result
+      _cache[cacheKey] = _CacheEntry(result);
+      _cleanCache();
+
+      return result;
     } catch (e) {
-      // Handle any other unexpected errors (e.g., JSON parsing error if backend sends malformed JSON)
-      print("Unexpected Error: $e"); // Log error
-      return SafetyCheckResult.error(url: url, message: 'An unexpected error occurred: ${e.toString()}');
+      return SafetyResult(
+        url: url,
+        isSafe: false,
+        threatType: AppConstants.invalidUrlFormatTitle,
+        description: '${AppConstants.invalidUrlFormatMessage}: ${e.toString()}',
+      );
     }
   }
+}
+
+class _CacheEntry {
+  final SafetyResult result;
+  final DateTime timestamp;
+
+  _CacheEntry(this.result) : timestamp = DateTime.now();
 }

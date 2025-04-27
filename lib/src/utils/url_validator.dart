@@ -1,19 +1,30 @@
-class UrlValidator {
-  /// Performs a basic check if the string is a plausible HTTP/HTTPS URL.
-  /// This is not exhaustive but helps filter out clearly non-URL data before
-  /// making an API call. The backend should perform more robust validation.
-  static bool isValidHttpUrl(String? potentialUrl) {
-    if (potentialUrl == null || potentialUrl.isEmpty) {
-      return false;
-    }
-    // Check if it starts with http:// or https://
-    if (!potentialUrl.startsWith('http://') && !potentialUrl.startsWith('https://')) {
-       return false;
-    }
+bool isValidUrl(String url) {
+  try {
+    final uri = Uri.parse(url);
+    return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+  } catch (e) {
+    return false;
+  }
+}
 
-    // Use Uri.tryParse for a more robust format check
-    final Uri? uri = Uri.tryParse(potentialUrl);
-    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-    // Could add more checks like uri.host.isNotEmpty, but keep it simple here.
+bool isSecureUrl(String url) {
+  try {
+    final uri = Uri.parse(url);
+    return uri.hasScheme && uri.scheme == 'https' && uri.host.isNotEmpty;
+  } catch (e) {
+    return false;
+  }
+}
+
+String? sanitizeUrl(String url) {
+  try {
+    final uri = Uri.parse(url.trim());
+    if (!uri.hasScheme) {
+      // Try adding https by default
+      return 'https://${url.trim()}';
+    }
+    return url.trim();
+  } catch (e) {
+    return null;
   }
 }

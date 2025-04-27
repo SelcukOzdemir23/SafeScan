@@ -1,38 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:safescan_flutter/src/models/safety_result.dart'; // Import the model with extensions
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SafetyIndicator extends StatelessWidget {
-  final SafetyStatus status;
-  final double size;
+  final bool isSafe;
+  final String message;
+  final VoidCallback? onAction;
+  final String? actionLabel;
 
   const SafetyIndicator({
     super.key,
-    required this.status,
-    this.size = 100.0, // Default size for the indicator
+    required this.isSafe,
+    required this.message,
+    this.onAction,
+    this.actionLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Use the properties defined in the SafetyStatus extension
-    final Color color = status.color;
-    final IconData iconData = status.icon;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15), // Light background color based on status
-        shape: BoxShape.circle, // Circular background
-        border: Border.all(
-          color: color, // Border color matches status
-          width: 3.0,
+    return Card(
+      elevation: 0,
+      color: (isSafe ? Colors.green : Colors.red).withAlpha(25), // 0.1 opacity
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color:
+              (isSafe ? Colors.green : Colors.red).withAlpha(51), // 0.2 opacity
+          width: 1,
         ),
       ),
-      child: Center(
-        child: Icon(
-          iconData,
-          color: color, // Icon color matches status
-          size: size * 0.5, // Make icon proportional to the container size
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSafe ? Icons.verified_outlined : Icons.warning_amber_rounded,
+              size: 48,
+              color: isSafe ? Colors.green : Colors.red,
+            )
+                .animate(onPlay: (controller) => controller.repeat())
+                .scale(
+                  duration: 1.seconds,
+                  begin: const Offset(1, 1),
+                  end: const Offset(1.05, 1.05),
+                )
+                .then()
+                .scale(
+                  duration: 1.seconds,
+                  begin: const Offset(1.05, 1.05),
+                  end: const Offset(1, 1),
+                ),
+            const SizedBox(height: 12),
+            Text(
+              isSafe ? 'Safe to Visit' : 'Warning',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isSafe ? Colors.green : Colors.red,
+              ),
+            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.3),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withAlpha(179), // 0.7 opacity
+              ),
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
+            if (onAction != null && actionLabel != null) ...[
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: onAction,
+                icon: Icon(
+                  isSafe ? Icons.open_in_new : Icons.refresh,
+                  size: 18,
+                ),
+                label: Text(actionLabel!),
+              ).animate().fadeIn(delay: 400.ms),
+            ],
+          ],
         ),
       ),
     );

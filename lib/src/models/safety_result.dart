@@ -120,3 +120,40 @@ class SafetyCheckResult {
     };
   }
 }
+
+class SafetyResult {
+  final String url;
+  final bool isSafe;
+  final String threatType;
+  final String description;
+
+  const SafetyResult({
+    required this.url,
+    required this.isSafe,
+    required this.threatType,
+    required this.description,
+  });
+
+  factory SafetyResult.fromJson(Map<String, dynamic> json) {
+    return SafetyResult(
+      url: json['url'] as String,
+      isSafe: json['isSafe'] as bool,
+      threatType: json['threatType'] as String,
+      description: json['description'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'url': url,
+      'isSafe': isSafe,
+      'threatType': threatType,
+      'description': description,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'SafetyResult(url: $url, isSafe: $isSafe, threatType: $threatType, description: $description)';
+  }
+}

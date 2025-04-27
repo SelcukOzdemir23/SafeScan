@@ -1,52 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:safescan_flutter/src/config/theme.dart';
 import 'package:safescan_flutter/src/features/scanner/scanner_screen.dart';
+import 'package:safescan_flutter/src/features/scanner/start_screen.dart';
 import 'package:safescan_flutter/src/features/result/result_screen.dart';
-import 'package:safescan_flutter/src/models/safety_result.dart'; // Import SafetyResult
+import 'package:safescan_flutter/src/config/app_theme.dart';
+import 'package:safescan_flutter/src/widgets/error_boundary.dart';
+import 'package:safescan_flutter/src/models/safety_result.dart';
+import 'package:safescan_flutter/src/features/scanner/qr_image_page.dart';
+import 'package:safescan_flutter/src/features/scanner/manual_url_page.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are initialized
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up global error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Global error caught: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+  };
+
+  runApp(const SafeScanApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SafeScanApp extends StatelessWidget {
+  const SafeScanApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SafeScan',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme, // Optional: Define a dark theme
-      themeMode: ThemeMode.system, // Use system theme setting
-      initialRoute: '/', // Start at the scanner screen
-      routes: {
-        '/': (context) => const ScannerScreen(),
-        // Define the result screen route if you want to navigate to it by name
-        // You'll likely navigate using Navigator.push with arguments instead
-        // '/result': (context) => const ResultScreen(result: /* Provide a default or dummy result */),
-      },
-      // Example of how to handle route generation if passing complex data
-      onGenerateRoute: (settings) {
-        if (settings.name == '/result') {
-          final args = settings.arguments as SafetyCheckResult?;
-          // Ensure args are provided and valid before creating the screen
-          if (args != null) {
+    return ErrorBoundary(
+      child: MaterialApp(
+        title: 'SafeScan QR',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        debugShowCheckedModeBanner: false,
+        home: const ErrorBoundary(child: StartScreen()),
+        onGenerateRoute: (settings) {
+          if (settings.name == '/scanner') {
+            final args = settings.arguments;
             return MaterialPageRoute(
-              builder: (context) {
-                return ResultScreen(result: args);
-              },
+              builder: (context) => ErrorBoundary(
+                child: ScannerScreen(
+                    initialAction: args is Map ? args['action'] : null),
+              ),
             );
           }
-          // Handle the case where args are missing or invalid
-          // Maybe return to scanner or show an error
-          return MaterialPageRoute(builder: (context) => const ScannerScreen()); // Fallback
-        }
-        // Handle other routes or unknown routes
-        assert(false, 'Need to implement ${settings.name}');
-        return null;
-      },
-      debugShowCheckedModeBanner: false, // Hide debug banner
+          if (settings.name == '/qr_image') {
+            return MaterialPageRoute(
+              builder: (context) => const ErrorBoundary(child: QrImagePage()),
+            );
+          }
+          if (settings.name == '/manual_url') {
+            final args = settings.arguments;
+            return MaterialPageRoute(
+              builder: (context) => ErrorBoundary(
+                child: ManualUrlPage(
+                    prefill: args is Map ? args['prefill'] : null),
+              ),
+            );
+          }
+          if (settings.name == '/result') {
+            final args = settings.arguments;
+            if (args is SafetyResult) {
+              return MaterialPageRoute(
+                builder: (context) {
+                  return ErrorBoundary(
+                    child: ResultScreen(result: args),
+                  );
+                },
+              );
+            }
+          }
+          return null;
+        },
+      ),
     );
   }
 }

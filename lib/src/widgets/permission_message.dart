@@ -1,15 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:safescan_flutter/src/config/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:safescan_flutter/src/utils/constants.dart';
 
 class PermissionMessage extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
+  final PermissionStatus status;
+  final VoidCallback onRequestPermission;
 
   const PermissionMessage({
     super.key,
-    required this.message,
-    required this.onRetry,
+    required this.status,
+    required this.onRequestPermission,
   });
+
+  String get _message {
+    switch (status) {
+      case PermissionStatus.denied:
+        return AppConstants.cameraPermissionMessage;
+      case PermissionStatus.permanentlyDenied:
+      case PermissionStatus.restricted:
+        return 'Camera access is permanently denied. Please enable it in your device settings to use the QR scanner.';
+      case PermissionStatus.limited:
+        return 'Limited camera access granted. Full access is needed for the QR scanner to work properly.';
+      default:
+        return AppConstants.cameraPermissionMessage;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,51 +34,71 @@ class PermissionMessage extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Fit content vertically
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
+          children: [
             Icon(
-              Icons.camera_alt_outlined, // Camera icon
-              size: 60,
-              color: Colors.grey[600],
-            ),
-            const SizedBox(height: 20),
+              Icons.camera_alt_outlined,
+              size: AppConstants.largeIconSize,
+              color: Theme.of(context).colorScheme.primary,
+            )
+                .animate(onPlay: (controller) => controller.repeat())
+                .scale(
+                  duration: AppConstants.longAnimation,
+                  begin: const Offset(1, 1),
+                  end: const Offset(1.1, 1.1),
+                )
+                .then()
+                .scale(
+                  duration: AppConstants.longAnimation,
+                  begin: const Offset(1.1, 1.1),
+                  end: const Offset(1, 1),
+                ),
+            const SizedBox(height: 24),
             Text(
-              'Permission Required',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              AppConstants.cameraPermissionTitle,
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
-            ),
+            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.3),
             const SizedBox(height: 12),
             Text(
-              message,
+              _message,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withAlpha(179), // 0.7 opacity
+              ),
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[700],
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
+            const SizedBox(height: 32),
+            if (status.isPermanentlyDenied || status.isRestricted)
+              ElevatedButton.icon(
+                onPressed: () => openAppSettings(),
+                icon: const Icon(Icons.settings),
+                label: const Text('Open Settings'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Grant Permission'),
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(
-                  // Use theme accent color
-                  // backgroundColor: AppTheme.accentColor,
-                  // foregroundColor: AppTheme.primaryColor,
+                ),
+              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2)
+            else
+              ElevatedButton.icon(
+                onPressed: onRequestPermission,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Grant Camera Access'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
-            ),
-            // Optional: Add button to open app settings
-             const SizedBox(height: 12),
-             TextButton(
-               child: const Text('Open Settings'),
-               onPressed: () async {
-                  // Consider using the permission_handler's openAppSettings()
-                  // Example: await openAppSettings();
-                  print("Placeholder: Would open app settings");
-               },
-             ),
+                ),
+              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
           ],
         ),
       ),

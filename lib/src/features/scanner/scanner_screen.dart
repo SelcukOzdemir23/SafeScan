@@ -1,58 +1,127 @@
-import 'dart:convert';
-import 'dart:io'; // Import Platform
-
-import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:safescan_flutter/src/models/safety_result.dart';
 import 'package:safescan_flutter/src/services/url_safety_service.dart';
-import 'package:safescan_flutter/src/utils/validators.dart';
+import 'package:safescan_flutter/src/services/qr_image_service.dart';
+import 'package:safescan_flutter/src/utils/constants.dart';
+import 'package:safescan_flutter/src/utils/url_validator.dart';
+import 'package:safescan_flutter/src/widgets/error_message.dart';
+import 'package:safescan_flutter/src/widgets/input_bottom_sheet.dart';
+import 'package:safescan_flutter/src/widgets/permission_message.dart';
 import 'package:safescan_flutter/src/widgets/qr_scanner_overlay.dart';
-import 'package:http/http.dart' as http; // Import http for exceptions
+import 'package:safescan_flutter/src/widgets/action_selection_sheet.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  final String? initialAction;
+  const ScannerScreen({super.key, this.initialAction});
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends State<ScannerScreen>
+    with WidgetsBindingObserver {
   final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
-  final MobileScannerController _controller = MobileScannerController(
-    // Higher resolution for better accuracy
-    detectionSpeed: DetectionSpeed.normal, // Slower is more battery efficient
-    facing: CameraFacing.back,
-    // torchEnabled: false, // Initial torch state
-  );
+  late final MobileScannerController _controller;
   final UrlSafetyService _urlSafetyService = UrlSafetyService();
+  final QrImageService _qrImageService = QrImageService();
+  final ValueNotifier<bool> _hasTorch = ValueNotifier<bool>(false);
 
   PermissionStatus _cameraPermissionStatus = PermissionStatus.denied;
   bool _isCheckingUrl = false;
-  bool _isCameraInitializing = true; // Track camera init state
-  String? _initializationError; // Store initialization error message
+  bool _isCameraInitializing = true;
+  String? _initializationError;
+  Timer? _initTimeout;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeController();
     _requestCameraPermission();
-    // Listen for controller ready state
-     _controller.start().then((_) {
+    // Trigger initial action if provided
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialAction == 'upload') {
+        _pickAndProcessImage();
+      } else if (widget.initialAction == 'manual') {
+        _showInputBottomSheet();
+      }
+    });
+  }
+
+  void _initializeController() {
+    _controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back,
+      torchEnabled: false,
+    );
+    // Set initial torch availability
+    _controller.start().then((_) {
+      if (mounted) {
+        _hasTorch.value = true;
+      }
+    });
+    _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    _initTimeout = Timer(const Duration(seconds: 10), () {
+      if (mounted && _isCameraInitializing) {
+        setState(() {
+          _isCameraInitializing = false;
+          _initializationError =
+              'Camera initialization timed out. Please try again.';
+        });
+      }
+    });
+
+    try {
+      await _controller.start();
       if (mounted) {
         setState(() {
           _isCameraInitializing = false;
         });
       }
-    }).catchError((error) {
-       if (mounted) {
-         setState(() {
-           _isCameraInitializing = false;
-           _initializationError = 'Failed to initialize camera: $error';
-         });
-       }
-       print("Camera initialization error: $error"); // Log error
-     });
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isCameraInitializing = false;
+          _initializationError = 'Failed to initialize camera: $error';
+        });
+      }
+      debugPrint('Camera initialization error: $error');
+    } finally {
+      _initTimeout?.cancel();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Handle app lifecycle changes
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _handleAppResumed();
+        break;
+      case AppLifecycleState.paused:
+        _handleAppPaused();
+        break;
+      default:
+        break;
+    }
+  }
+
+  Future<void> _handleAppResumed() async {
+    if (_cameraPermissionStatus.isGranted && !_isCheckingUrl) {
+      await _initializeCamera();
+    }
+  }
+
+  Future<void> _handleAppPaused() {
+    debugPrint('App paused - stopping camera');
+    return _controller.stop();
   }
 
   Future<void> _requestCameraPermission() async {
@@ -60,14 +129,125 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (mounted) {
       setState(() {
         _cameraPermissionStatus = status;
-        if (status.isGranted) {
-          // Start camera only if permission granted and not already started
-          // Controller starting is handled in initState now
-        } else {
-           _isCameraInitializing = false; // Stop init indication if no permission
+        if (!status.isGranted) {
+          _isCameraInitializing = false;
           _initializationError = 'Camera permission denied.';
         }
       });
+    }
+  }
+
+  Future<void> _processQrImage(File imageFile) async {
+    setState(() => _isCheckingUrl = true);
+
+    try {
+      final String? qrData = await _qrImageService.processQrImage(imageFile);
+
+      if (qrData == null) {
+        _showErrorDialog(
+          'Invalid QR Code',
+          'No valid QR code found in the image.',
+        );
+        return;
+      }
+
+      await _checkUrl(qrData);
+    } catch (e) {
+      debugPrint('Error processing QR image: $e');
+      _showErrorDialog(
+        'Processing Error',
+        'Failed to process the QR code image. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingUrl = false);
+      }
+    }
+  }
+
+  void _showInputBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => InputBottomSheet(
+        onUrlSubmitted: _checkUrl,
+        onImageSelected: _processQrImage,
+      ),
+    );
+  }
+
+  void _showActionSelectionSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => ActionSelectionSheet(
+        onScanQr: () {}, // Just dismisses, camera is default
+        onUploadImage: _pickAndProcessImage,
+        onEnterUrl: _showInputBottomSheet,
+      ),
+    );
+  }
+
+  Future<void> _pickAndProcessImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        await _processQrImage(File(image.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _checkUrl(String url) async {
+    if (_isCheckingUrl) return;
+
+    final sanitizedUrl = sanitizeUrl(url);
+    if (sanitizedUrl == null || !isValidUrl(sanitizedUrl)) {
+      _showErrorDialog(
+        AppConstants.invalidUrlTitle,
+        AppConstants.invalidUrlMessage,
+      );
+      return;
+    }
+
+    setState(() => _isCheckingUrl = true);
+
+    try {
+      final result = await _urlSafetyService.checkUrlSafety(sanitizedUrl);
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/result',
+          arguments: result,
+        ).then((_) {
+          if (mounted) {
+            setState(() => _isCheckingUrl = false);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking URL safety: $e');
+      _showErrorDialog(
+        AppConstants.networkErrorTitle,
+        AppConstants.networkErrorMessage,
+      );
     }
   }
 
@@ -86,80 +266,21 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ],
       ),
     );
-     // Reset checking state after showing error
-     if (mounted) {
-       setState(() {
-         _isCheckingUrl = false;
-       });
-     }
+    if (mounted) {
+      setState(() => _isCheckingUrl = false);
+    }
   }
 
   void _onDetect(BarcodeCapture capture) async {
-    if (_isCheckingUrl) return; // Prevent multiple checks for the same scan
+    if (_isCheckingUrl) return;
 
     final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isNotEmpty) {
-      final String? scannedData = barcodes.first.rawValue;
+    if (barcodes.isEmpty) return;
 
-      if (scannedData != null && scannedData.isNotEmpty) {
-        // Stop the camera to prevent further scans while processing
-        // await _controller.stop(); // Stop scanning temporarily
+    final String? scannedData = barcodes.first.rawValue;
+    if (scannedData == null || scannedData.isEmpty) return;
 
-        if (isValidUrl(scannedData)) {
-          setState(() {
-            _isCheckingUrl = true; // Indicate processing starts
-          });
-
-          try {
-            final result = await _urlSafetyService.checkUrlSafety(scannedData);
-             if (mounted) {
-               // Navigate to result screen
-               Navigator.pushNamed(
-                 context,
-                 '/result',
-                 arguments: result,
-               ).then((_) {
-                 // When returning from result screen, reset state and restart camera
-                 if (mounted) {
-                   setState(() {
-                     _isCheckingUrl = false;
-                   });
-                   // Restart scanning if permission is still granted
-                  //  if (_cameraPermissionStatus.isGranted) {
-                  //     _controller.start();
-                  //  }
-                 }
-               });
-             }
-          } on SocketException catch (e) {
-             print('Network Error: $e'); // Log error
-             _showErrorDialog('Network Error',
-                 'Could not connect to the safety check service. Please check your internet connection.');
-          } on http.ClientException catch (e) {
-            print('HTTP Client Error: $e'); // Log error
-             _showErrorDialog('Service Error',
-                 'Could not reach the safety check service. It might be temporarily down.');
-          } catch (e) {
-            // Handle other potential errors (e.g., JSON parsing, unexpected backend response)
-            print('Error checking URL: $e'); // Log error
-             _showErrorDialog('Error', 'An unexpected error occurred: ${e.toString()}');
-          }
-        } else {
-          // Handle non-URL QR codes (optional)
-          print('Scanned non-URL data: $scannedData');
-          _showErrorDialog('Invalid QR Code', 'The scanned QR code does not contain a valid URL.');
-           // Reset state and restart camera if needed
-           if (mounted) {
-             setState(() {
-               _isCheckingUrl = false;
-             });
-            //  if (_cameraPermissionStatus.isGranted) {
-            //    _controller.start();
-            //  }
-           }
-        }
-      }
-    }
+    await _checkUrl(scannedData);
   }
 
   @override
@@ -168,160 +289,111 @@ class _ScannerScreenState extends State<ScannerScreen> {
       appBar: AppBar(
         title: const Text('SafeScan QR'),
         actions: [
-          // Torch toggle button
-          ValueListenableBuilder<TorchState>(
-             valueListenable: _controller.torchState,
-             builder: (context, state, child) {
-              // Don't show toggle if camera isn't ready or no permission
-               if (!_cameraPermissionStatus.isGranted || _isCameraInitializing) {
-                 return const SizedBox.shrink();
-               }
-               switch (state) {
-                 case TorchState.off:
-                   return IconButton(
-                     color: Colors.white, // Use theme color later
-                     icon: const Icon(Icons.flash_off),
-                     tooltip: 'Turn on flash',
-                     onPressed: () async => await _controller.toggleTorch(),
-                   );
-                 case TorchState.on:
-                   return IconButton(
-                     color: Colors.yellow, // Indicate torch is on
-                     icon: const Icon(Icons.flash_on),
-                      tooltip: 'Turn off flash',
-                     onPressed: () async => await _controller.toggleTorch(),
-                   );
-                 default: // Unavailable
-                   return const Icon(Icons.no_flash, color: Colors.grey);
-               }
-             },
-           ),
-          // Camera switch button (optional)
-          // IconButton(
-          //   icon: const Icon(Icons.switch_camera),
-          //   onPressed: () async => await _controller.switchCamera(),
-          // ),
+          ValueListenableBuilder<bool>(
+            valueListenable: _hasTorch,
+            builder: (context, hasTorch, child) {
+              if (!hasTorch ||
+                  !_cameraPermissionStatus.isGranted ||
+                  _isCameraInitializing) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                icon: Icon(
+                  _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
+                  color:
+                      _controller.torchEnabled ? Colors.yellow : Colors.white,
+                ),
+                onPressed: () => _controller.toggleTorch(),
+                tooltip: 'Toggle flash',
+              );
+            },
+          ),
         ],
       ),
       body: Stack(
         children: [
-          // Camera View or Permission/Error Messages
           _buildCameraOrMessage(),
-
-          // QR Scanner Overlay
-          if (_cameraPermissionStatus.isGranted && !_isCameraInitializing && _initializationError == null)
-            QRScannerOverlay(overlayColour: Colors.black.withOpacity(0.6)),
-
-          // Loading Indicator
+          if (_cameraPermissionStatus.isGranted &&
+              !_isCameraInitializing &&
+              _initializationError == null)
+            const QRScannerOverlay(
+              scanAreaSize: AppConstants.scannerOverlaySize,
+              overlayColour: Colors.black54,
+              scanAreaHint: AppConstants.scannerHint,
+            ),
           if (_isCheckingUrl)
-             Container(
-              color: Colors.black.withOpacity(0.7), // Darken background
+            ColoredBox(
+              color: Colors.black.withAlpha(179),
               child: const Center(
                 child: Column(
-                   mainAxisAlignment: MainAxisAlignment.center,
-                   children: [
-                     CircularProgressIndicator(),
-                     SizedBox(height: 16),
-                     Text('Checking URL safety...', style: TextStyle(color: Colors.white)),
-                   ],
-                 ),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      AppConstants.checkingUrlMessage,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showActionSelectionSheet,
+        icon: const Icon(Icons.qr_code),
+        label: const Text('Scan or Upload'),
       ),
     );
   }
 
   Widget _buildCameraOrMessage() {
-    // Handle web platform (mobile_scanner limitations)
-    if (kIsWeb) {
-      return const Center(
-        child: Text('QR scanning is not supported on the web platform.'),
+    if (_initializationError != null) {
+      return ErrorMessage(
+        title: 'Camera Error',
+        message: _initializationError!,
+        onRetry: _initializeCamera,
       );
     }
 
-    // Handle initialization error
-     if (_initializationError != null) {
-       return Center(
-         child: Padding(
-           padding: const EdgeInsets.all(16.0),
-           child: Text(
-             'Error: $_initializationError\nPlease ensure camera permissions are granted and the camera is functional.',
-             textAlign: TextAlign.center,
-             style: TextStyle(color: Theme.of(context).colorScheme.error),
-           ),
-         ),
-       );
-     }
-
-
-    // Show loading indicator while initializing camera
     if (_isCameraInitializing) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Handle camera permission status
     switch (_cameraPermissionStatus) {
       case PermissionStatus.granted:
-        // Ensure controller is ready before building MobileScanner
         return MobileScanner(
-              key: _qrKey,
-              controller: _controller,
-              onDetect: _onDetect,
-              // Error builder for the scanner itself
-               errorBuilder: (context, error, child) {
-                 print("MobileScanner Error: $error"); // Log specific scanner error
-                 return Center(
-                   child: Text(
-                     'Scanner error: ${error.toString()}',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                   ),
-                 );
-               },
+          key: _qrKey,
+          controller: _controller,
+          onDetect: _onDetect,
+          errorBuilder: (context, error, child) {
+            debugPrint("Scanner error: $error");
+            return ErrorMessage(
+              title: 'Scanner Error',
+              message: error.toString(),
+              onRetry: _initializeCamera,
             );
+          },
+        );
       case PermissionStatus.denied:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Camera permission denied.'),
-              ElevatedButton(
-                onPressed: _requestCameraPermission,
-                child: const Text('Request Permission'),
-              ),
-            ],
-          ),
-        );
+      case PermissionStatus.restricted:
+      case PermissionStatus.limited:
       case PermissionStatus.permanentlyDenied:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Camera permission permanently denied.'),
-              ElevatedButton(
-                onPressed: openAppSettings, // Requires permission_handler
-                child: const Text('Open Settings'),
-              ),
-            ],
-          ),
+        return PermissionMessage(
+          status: _cameraPermissionStatus,
+          onRequestPermission: _requestCameraPermission,
         );
-      case PermissionStatus.restricted: // iOS specific
-        return const Center(
-          child: Text('Camera access is restricted (e.g., by parental controls).'),
-        );
-      case PermissionStatus.limited: // iOS specific
-         return const Center(
-           child: Text('Camera access is limited. Grant full access for scanning.'),
-         );
-      default: // Should not happen if initState logic is correct
+      default:
         return const Center(child: Text('Checking camera permissions...'));
     }
   }
 
-
   @override
   void dispose() {
-    // Dispose the controller when the widget is disposed.
+    _hasTorch.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _initTimeout?.cancel();
     _controller.dispose();
     super.dispose();
   }
