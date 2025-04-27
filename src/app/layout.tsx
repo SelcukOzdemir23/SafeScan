@@ -6,14 +6,17 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Toaster } from '@/components/ui/toaster'; // Ensure Toaster is imported
 
+// Define fonts
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap', // Improve font loading behavior
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  display: 'swap', // Improve font loading behavior
 });
 
 export const metadata: Metadata = {
@@ -27,11 +30,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    // Apply font variables directly to the html tag
+    <html lang="en" className={cn(geistSans.variable, geistMono.variable, 'h-full')}>
       <body
+        // Apply utility classes and ensure base styles are set
         className={cn(
-          `${geistSans.variable} ${geistMono.variable} antialiased`,
-          'flex flex-col min-h-screen' // Ensure body takes full height and uses flex column
+          'antialiased', // Keep antialiased for smoother text
+          'flex flex-col min-h-screen bg-background text-foreground' // Set base bg/text and layout structure
         )}
       >
         <Header />
