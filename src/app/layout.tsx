@@ -30,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Apply font variables directly to the html tag
-    <html lang="en" className={cn(geistSans.variable, geistMono.variable, 'h-full')}>
+    // Apply font variables directly to the html tag and suppress hydration warnings
+    <html lang="en" className={cn(geistSans.variable, geistMono.variable, 'h-full')} suppressHydrationWarning={true}>
       <body
         // Apply utility classes and ensure base styles are set
         className={cn(
