@@ -36,11 +36,9 @@ class SafeScanApp extends StatelessWidget {
         home: const ErrorBoundary(child: StartScreen()),
         onGenerateRoute: (settings) {
           if (settings.name == '/scanner') {
-            final args = settings.arguments;
             return MaterialPageRoute(
-              builder: (context) => ErrorBoundary(
-                child: ScannerScreen(
-                    initialAction: args is Map ? args['action'] : null),
+              builder: (context) => const ErrorBoundary(
+                child: ScannerScreen(),
               ),
             );
           }

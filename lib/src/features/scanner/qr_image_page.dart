@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:safescan_flutter/src/services/qr_image_service.dart';
+import 'package:safescan_flutter/src/services/url_safety_service.dart';
 import 'package:safescan_flutter/src/widgets/error_message.dart';
 
 class QrImagePage extends StatefulWidget {
@@ -16,12 +17,15 @@ class QrImagePage extends StatefulWidget {
 class _QrImagePageState extends State<QrImagePage> {
   bool _isProcessing = false;
   String? _error;
+  String? _detectedUrl;
   final QrImageService _qrImageService = QrImageService();
+  final UrlSafetyService _urlSafetyService = UrlSafetyService();
 
   Future<void> _pickAndProcessImage() async {
     setState(() {
       _isProcessing = true;
       _error = null;
+      _detectedUrl = null;
     });
 
     try {
@@ -38,6 +42,8 @@ class _QrImagePageState extends State<QrImagePage> {
 
       final imageFile = File(image.path);
 
+      // First step: Extract URL from QR code
+      setState(() => _isProcessing = true);
       final String? qrData = await _qrImageService.processQrImage(imageFile);
 
       if (qrData == null) {
@@ -48,12 +54,29 @@ class _QrImagePageState extends State<QrImagePage> {
         return;
       }
 
-      if (mounted) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/scanner',
-          arguments: {'action': 'manual', 'prefill': qrData},
-        );
+      // Store the detected URL
+      setState(() {
+        _detectedUrl = qrData;
+        _isProcessing = true; // Still processing for safety check
+      });
+
+      // Second step: Check URL safety
+      try {
+        final safetyResult = await _urlSafetyService.checkUrlSafety(qrData);
+
+        if (mounted) {
+          // Navigate to result screen with safety information
+          Navigator.pushNamed(
+            context,
+            '/result',
+            arguments: safetyResult,
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isProcessing = false;
+          _error = 'Error checking URL safety: $e';
+        });
       }
     } catch (e) {
       setState(() {
@@ -67,6 +90,7 @@ class _QrImagePageState extends State<QrImagePage> {
     setState(() {
       _isProcessing = true;
       _error = null;
+      _detectedUrl = null;
     });
 
     try {
@@ -83,6 +107,8 @@ class _QrImagePageState extends State<QrImagePage> {
 
       final imageFile = File(image.path);
 
+      // First step: Extract URL from QR code
+      setState(() => _isProcessing = true);
       final String? qrData = await _qrImageService.processQrImage(imageFile);
 
       if (qrData == null) {
@@ -93,12 +119,29 @@ class _QrImagePageState extends State<QrImagePage> {
         return;
       }
 
-      if (mounted) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/scanner',
-          arguments: {'action': 'manual', 'prefill': qrData},
-        );
+      // Store the detected URL
+      setState(() {
+        _detectedUrl = qrData;
+        _isProcessing = true; // Still processing for safety check
+      });
+
+      // Second step: Check URL safety
+      try {
+        final safetyResult = await _urlSafetyService.checkUrlSafety(qrData);
+
+        if (mounted) {
+          // Navigate to result screen with safety information
+          Navigator.pushNamed(
+            context,
+            '/result',
+            arguments: safetyResult,
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isProcessing = false;
+          _error = 'Error checking URL safety: $e';
+        });
       }
     } catch (e) {
       setState(() {
@@ -248,18 +291,40 @@ class _QrImagePageState extends State<QrImagePage> {
             const CircularProgressIndicator(),
             const SizedBox(height: 24),
             Text(
-              'Processing QR code...',
+              _detectedUrl != null
+                  ? 'Checking URL Safety...'
+                  : 'Processing QR code...',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              'Please wait while we analyze the image',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color:
-                        Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                  ),
-              textAlign: TextAlign.center,
-            ),
+            if (_detectedUrl != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _detectedUrl!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )
+            else
+              Text(
+                'Please wait while we analyze the image',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(150),
+                    ),
+                textAlign: TextAlign.center,
+              ),
           ],
         ),
       ).animate().fadeIn(duration: 400.ms),

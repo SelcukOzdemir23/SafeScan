@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:safescan_flutter/src/models/safety_result.dart';
+import 'package:safescan_flutter/src/services/url_safety_service.dart';
 import 'package:safescan_flutter/src/utils/constants.dart';
 import 'package:safescan_flutter/src/utils/url_validator.dart';
 
@@ -16,9 +18,11 @@ class ManualUrlPage extends StatefulWidget {
 class _ManualUrlPageState extends State<ManualUrlPage> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  final UrlSafetyService _urlSafetyService = UrlSafetyService();
   String? _error;
   bool _isLoading = false;
   bool _hasText = false;
+  String? _sanitizedUrl;
 
   @override
   void initState() {
@@ -26,6 +30,12 @@ class _ManualUrlPageState extends State<ManualUrlPage> {
     if (widget.prefill != null) {
       _controller.text = widget.prefill!;
       _hasText = widget.prefill!.isNotEmpty;
+
+      // If prefilled, validate the URL
+      final sanitized = sanitizeUrl(widget.prefill!.trim());
+      if (sanitized != null && isValidUrl(sanitized)) {
+        _sanitizedUrl = sanitized;
+      }
     }
 
     _controller.addListener(() {
@@ -34,6 +44,21 @@ class _ManualUrlPageState extends State<ManualUrlPage> {
         setState(() {
           _hasText = hasText;
         });
+      }
+
+      // Validate URL as user types
+      if (hasText) {
+        final sanitized = sanitizeUrl(_controller.text.trim());
+        if (sanitized != null && isValidUrl(sanitized)) {
+          if (_error != null) {
+            setState(() {
+              _error = null;
+              _sanitizedUrl = sanitized;
+            });
+          } else {
+            _sanitizedUrl = sanitized;
+          }
+        }
       }
     });
 
@@ -50,22 +75,40 @@ class _ManualUrlPageState extends State<ManualUrlPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final url = _controller.text.trim();
     final sanitized = sanitizeUrl(url);
     if (sanitized == null || !isValidUrl(sanitized)) {
       setState(() => _error = AppConstants.invalidUrlMessage);
       return;
     }
+
     setState(() {
       _error = null;
       _isLoading = true;
+      _sanitizedUrl = sanitized;
     });
-    Navigator.pushReplacementNamed(
-      context,
-      '/scanner',
-      arguments: {'action': 'manual', 'prefill': sanitized},
-    );
+
+    try {
+      // Check URL safety
+      final safetyResult = await _urlSafetyService.checkUrlSafety(sanitized);
+
+      if (mounted) {
+        // Navigate to result screen with safety information
+        Navigator.pushNamed(
+          context,
+          '/result',
+          arguments: safetyResult,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Error checking URL safety: $e';
+        });
+      }
+    }
   }
 
   void _pasteFromClipboard() async {
@@ -237,6 +280,32 @@ class _ManualUrlPageState extends State<ManualUrlPage> {
                           ),
                         ),
                       ),
+                      if (_isLoading && _sanitizedUrl != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: Column(
+                            children: [
+                              const LinearProgressIndicator(),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Checking URL safety:',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurface.withAlpha(180),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _sanitizedUrl!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),

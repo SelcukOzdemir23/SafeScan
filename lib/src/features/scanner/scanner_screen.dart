@@ -1,22 +1,17 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:safescan_flutter/src/services/url_safety_service.dart';
-import 'package:safescan_flutter/src/services/qr_image_service.dart';
 import 'package:safescan_flutter/src/utils/constants.dart';
 import 'package:safescan_flutter/src/utils/url_validator.dart';
 import 'package:safescan_flutter/src/widgets/error_message.dart';
-import 'package:safescan_flutter/src/widgets/input_bottom_sheet.dart';
 import 'package:safescan_flutter/src/widgets/permission_message.dart';
 import 'package:safescan_flutter/src/widgets/qr_scanner_overlay.dart';
 import 'package:safescan_flutter/src/widgets/action_selection_sheet.dart';
-import 'package:image_picker/image_picker.dart';
 
 class ScannerScreen extends StatefulWidget {
-  final String? initialAction;
-  const ScannerScreen({super.key, this.initialAction});
+  const ScannerScreen({super.key});
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -27,7 +22,6 @@ class _ScannerScreenState extends State<ScannerScreen>
   final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
   late final MobileScannerController _controller;
   final UrlSafetyService _urlSafetyService = UrlSafetyService();
-  final QrImageService _qrImageService = QrImageService();
   final ValueNotifier<bool> _hasTorch = ValueNotifier<bool>(false);
 
   PermissionStatus _cameraPermissionStatus = PermissionStatus.denied;
@@ -42,14 +36,6 @@ class _ScannerScreenState extends State<ScannerScreen>
     WidgetsBinding.instance.addObserver(this);
     _initializeController();
     _requestCameraPermission();
-    // Trigger initial action if provided
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.initialAction == 'upload') {
-        _pickAndProcessImage();
-      } else if (widget.initialAction == 'manual') {
-        _showInputBottomSheet();
-      }
-    });
   }
 
   void _initializeController() {
@@ -137,49 +123,6 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  Future<void> _processQrImage(File imageFile) async {
-    setState(() => _isCheckingUrl = true);
-
-    try {
-      final String? qrData = await _qrImageService.processQrImage(imageFile);
-
-      if (qrData == null) {
-        _showErrorDialog(
-          'Invalid QR Code',
-          'No valid QR code found in the image.',
-        );
-        return;
-      }
-
-      await _checkUrl(qrData);
-    } catch (e) {
-      debugPrint('Error processing QR image: $e');
-      _showErrorDialog(
-        'Processing Error',
-        'Failed to process the QR code image. Please try again.',
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isCheckingUrl = false);
-      }
-    }
-  }
-
-  void _showInputBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => InputBottomSheet(
-        onUrlSubmitted: _checkUrl,
-        onImageSelected: _processQrImage,
-      ),
-    );
-  }
-
   void _showActionSelectionSheet() {
     showModalBottomSheet(
       context: context,
@@ -190,29 +133,14 @@ class _ScannerScreenState extends State<ScannerScreen>
       ),
       builder: (context) => ActionSelectionSheet(
         onScanQr: () {}, // Just dismisses, camera is default
-        onUploadImage: _pickAndProcessImage,
-        onEnterUrl: _showInputBottomSheet,
+        onUploadImage: () {
+          Navigator.pushNamed(context, '/qr_image');
+        },
+        onEnterUrl: () {
+          Navigator.pushNamed(context, '/manual_url');
+        },
       ),
     );
-  }
-
-  Future<void> _pickAndProcessImage() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        await _processQrImage(File(image.path));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error selecting image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _checkUrl(String url) async {
